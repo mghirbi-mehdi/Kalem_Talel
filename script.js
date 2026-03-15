@@ -1,145 +1,98 @@
-// Données des restaurants (exemple pour 100+ restos)
-const restaurantsData = [
-    {
-        id: 1,
-        name: "AL OSTEDH",
-        logo: "🍔",
-        address: "📍 LAFAYETTE",
-        hours: "10h-22h",
-        type: "burger",
-        plats: [
-            { name: "Burger Crispy", desc: "Tomates, Laitue, Sauce fromagère", price: "14,9 DT", img: "burger_bnin.PNG" },
-            { name: "Burger Classique", desc: "Tomates, Laitue, Boeuf", price: "16,9 DT", img: "burger_classique.PNG" },
-            // ... plus de plats
-        ]
-    },
-    {
-        id: 2,
-        name: "Saveurs d'Orient",
-        logo: "🥙",
-        address: "📍 Ariana",
-        hours: "11h-23h",
-        type: "oriental",
-        plats: [
-            { name: "Chawarma Poulet", desc: "Pain libanais, poulet mariné", price: "12 DT", img: "https://images.unsplash.com/photo-1606755456206-b25206cde27e" },
-            // ... plus de plats
-        ]
-    },
-    // Ajoutez vos 100+ restaurants ici
-];
-
-let currentPage = 1;
-const itemsPerPage = 10;
-let filteredRestos = [];
-
-// Chargement initial
-document.addEventListener('DOMContentLoaded', function() {
-    filteredRestos = restaurantsData;
-    loadRestaurants();
-    setupSearch();
-    setupFilters();
-    setupInfiniteScroll();
-});
-
-function loadRestaurants(reset = false) {
-    if (reset) {
-        currentPage = 1;
-        document.getElementById('restoContainer').innerHTML = '';
-    }
+// Fonction de recherche
+function searchRestaurant() {
+    let input = document.getElementById('searchInput').value.toLowerCase().trim();
+    let restaurants = document.querySelectorAll('.restaurant-section');
+    let resultCount = 0;
     
-    const start = (currentPage - 1) * itemsPerPage;
-    const end = start + itemsPerPage;
-    const restosToShow = filteredRestos.slice(start, end);
+    // Enlever l'ancien message "aucun résultat" s'il existe
+    let oldNoResult = document.getElementById('noResult');
+    if (oldNoResult) oldNoResult.remove();
     
-    restosToShow.forEach(resto => {
-        const restoHTML = createRestaurantHTML(resto);
-        document.getElementById('restoContainer').insertAdjacentHTML('beforeend', restoHTML);
-    });
-    
-    if (end >= filteredRestos.length) {
-        // Plus de restaurants à charger
-        document.querySelector('.load-more')?.remove();
-    }
-}
-
-function createRestaurantHTML(resto) {
-    let platsHTML = '';
-    resto.plats.forEach(plat => {
-        platsHTML += `
-            <div class="plat-card">
-                <div class="plat-image" style="background-image: url('${plat.img}')"></div>
-                <div class="plat-info">
-                    <h3>${plat.name}</h3>
-                    <p class="plat-description">${plat.desc}</p>
-                    <div class="plat-footer">
-                        <span class="prix">${plat.price}</span>
-                        <a href="https://wa.me/21651924385?text=Commande%20${plat.name}" class="btn-whatsapp">
-                            <i class="fab fa-whatsapp"></i> Commander
-                        </a>
-                    </div>
-                </div>
-            </div>
-        `;
-    });
-    
-    return `
-        <section class="restaurant-section">
-            <div class="restaurant-header">
-                <div class="restaurant-logo">${resto.logo}</div>
-                <div>
-                    <h2>${resto.name}</h2>
-                    <p>📍 ${resto.address} • ${resto.hours}</p>
-                </div>
-            </div>
-            <div class="menu-grid">
-                ${platsHTML}
-            </div>
-        </section>
-    `;
-}
-
-function setupSearch() {
-    const searchInput = document.getElementById('searchInput');
-    searchInput.addEventListener('input', function(e) {
-        const searchTerm = e.target.value.toLowerCase();
-        filteredRestos = restaurantsData.filter(resto => 
-            resto.name.toLowerCase().includes(searchTerm) ||
-            resto.plats.some(plat => 
-                plat.name.toLowerCase().includes(searchTerm) ||
-                plat.desc.toLowerCase().includes(searchTerm)
-            )
-        );
-        loadRestaurants(true);
-    });
-}
-
-function setupFilters() {
-    document.querySelectorAll('.filter-btn').forEach(btn => {
-        btn.addEventListener('click', function() {
-            document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
-            this.classList.add('active');
+    restaurants.forEach(restaurant => {
+        let nomResto = restaurant.querySelector('h2').textContent.toLowerCase();
+        let adresse = restaurant.querySelector('.restaurant-header p').textContent.toLowerCase();
+        let plats = restaurant.querySelectorAll('.plat-card');
+        let restoVisible = false;
+        
+        // Vérifier si le nom du resto ou l'adresse correspond
+        if (nomResto.includes(input) || adresse.includes(input)) {
+            restoVisible = true;
+            restaurant.style.display = 'block';
+            plats.forEach(plat => plat.style.display = 'block');
+            resultCount++;
+        } else {
+            // Chercher dans les plats
+            let platTrouve = false;
+            plats.forEach(plat => {
+                let nomPlat = plat.querySelector('h3').textContent.toLowerCase();
+                let description = plat.querySelector('.plat-description').textContent.toLowerCase();
+                let prix = plat.querySelector('.prix').textContent.toLowerCase();
+                
+                if (nomPlat.includes(input) || description.includes(input) || prix.includes(input)) {
+                    plat.style.display = 'block';
+                    platTrouve = true;
+                    restoVisible = true;
+                } else {
+                    plat.style.display = 'none';
+                }
+            });
             
-            const filter = this.dataset.filter;
-            if (filter === 'all') {
-                filteredRestos = restaurantsData;
+            // Si un plat est trouvé, afficher le resto
+            if (platTrouve) {
+                restaurant.style.display = 'block';
+                resultCount++;
             } else {
-                filteredRestos = restaurantsData.filter(r => r.type === filter);
-            }
-            loadRestaurants(true);
-        });
-    });
-}
-
-function setupInfiniteScroll() {
-    window.addEventListener('scroll', function() {
-        if ((window.innerHeight + window.scrollY) >= document.body.offsetHeight - 1000) {
-            if (currentPage * itemsPerPage < filteredRestos.length) {
-                currentPage++;
-                loadRestaurants();
+                restaurant.style.display = 'none';
             }
         }
-        
-        // Scroll to top button
-        document.querySelector('.scroll-top').classList.toggle('show', window.scrollY > 300);
     });
+    
+    // Message si aucun résultat
+    if (resultCount === 0 && input !== '') {
+        let noResult = document.createElement('div');
+        noResult.id = 'noResult';
+        noResult.className = 'no-result';
+        noResult.innerHTML = `
+            <span>😕</span>
+            <p>Aucun résultat pour "<strong>${input}</strong>"</p>
+            <p>Essayez avec d'autres mots-clés comme :</p>
+            <p>
+                <span class="highlight">burger</span> 
+                <span class="highlight">poulet</span> 
+                <span class="highlight">poisson</span> 
+            </p>
+        `;
+        document.querySelector('.container').insertBefore(noResult, document.querySelector('.restaurant-section'));
+    }
 }
+
+// Fonction pour réinitialiser la recherche
+function resetSearch() {
+    let input = document.getElementById('searchInput');
+    if (input.value === '') {
+        location.reload(); // Recharge la page pour tout réafficher
+    }
+}
+
+// Initialisation quand la page est chargée
+document.addEventListener('DOMContentLoaded', function() {
+    let searchInput = document.getElementById('searchInput');
+    
+    // Ajouter l'événement de recherche
+    searchInput.addEventListener('keyup', searchRestaurant);
+    
+    // Ajouter l'événement pour effacer (bouton X dans le champ)
+    searchInput.addEventListener('search', function(e) {
+        if (this.value === '') {
+            location.reload();
+        }
+    });
+    
+    // Suggestions cliquables (optionnel)
+    document.addEventListener('click', function(e) {
+        if (e.target.classList.contains('highlight')) {
+            searchInput.value = e.target.textContent;
+            searchRestaurant();
+        }
+    });
+});
